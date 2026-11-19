@@ -9,7 +9,7 @@ header .actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 main{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px;height:calc(100vh - 61px)}
 section{background:white;border:1px solid #dce2ea;border-radius:10px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
 section h2{font-size:15px;margin:0;padding:10px 16px;border-bottom:1px solid #e5e9f0}
-textarea{width:100%;flex:1;border:0;resize:none;padding:18px;font:14px/1.65 ui-monospace,Consolas,monospace;outline:0}
+textarea{width:100%;flex:1;border:0;resize:none;padding:18px;font:400 13px/1.45 "Pretendard",system-ui,sans-serif;outline:0}
 #preview{padding:20px 25px;overflow:auto;overflow-wrap:anywhere}
 #preview h1,#preview h2,#preview h3{line-height:1.35}
 #preview pre{background:#f2f4f7;padding:15px;overflow:auto;border-radius:6px;white-space:pre;font-family:"DejaVu Sans Mono",Consolas,"Courier New",monospace;font-variant-ligatures:none;letter-spacing:0;tab-size:4}
@@ -48,7 +48,7 @@ button.primary{background:#142c50;color:white;border-color:#142c50}small{color:#
 }
 </style></head>
 <body><header><strong>LaTeX Markdown Viewer</strong><div class="actions"><small id="status">라이브러리 로딩 중…</small><button id="clear">지우기</button><button id="pdf" class="primary">PDF 저장</button></div></header>
-<main><section class="editor-section"><h2>원본 입력 · 수정하지 않음</h2><textarea id="source" placeholder="Markdown 또는 TXT 내용을 그대로 붙여넣으세요" spellcheck="false"></textarea></section>
+<main><section class="editor-section"><h2>원본 입력 · 수정하지 않음</h2><textarea id="source" placeholder="여기에 Markdown 또는 LaTeX 텍스트를 붙여넣으세요." spellcheck="false"></textarea></section>
 <section class="preview-section"><h2>미리보기</h2><article id="preview"></article></section></main>
 <script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
@@ -97,20 +97,5 @@ function render(){
 source.addEventListener('input',render);
 document.getElementById('clear').onclick=()=>{source.value='';render();source.focus()};
 document.getElementById('pdf').onclick=async()=>{render();if(document.fonts)await document.fonts.ready;window.print()};
-source.value=String.raw`예를 들어 equilibrium 방식에서는
-
-\\[ p(x)=\frac{1}{Z}e^{-E(x)/(k_BT)} \\]
-
-가 되도록 물리계를 만든 뒤,
-
-\\[ \langle f(x)\rangle=\int f(x)p(x)\,dx \\]
-
-를 time/ensemble average로 추정한다.
-
-Non-equilibrium 방식에서는 특정 \\(t=t_{\mathrm{obs}}\\)에서
-
-\\[ y\approx\mathbb{E}[f(x(t_{\mathrm{obs}}))] \\]
-
-가 target function이 되도록 학습한다.`;
 render();window.addEventListener('load',render);
 </script></body></html>
