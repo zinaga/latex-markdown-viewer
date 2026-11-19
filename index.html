@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LaTeX Markdown Viewer</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.css">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f3f5f8;color:#243145;font:15px/1.65 system-ui,sans-serif}
+header{padding:12px 22px;background:white;border-bottom:1px solid #dce2ea;display:flex;justify-content:space-between;align-items:center;gap:10px}
+header .actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+main{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:14px;height:calc(100vh - 61px)}
+section{background:white;border:1px solid #dce2ea;border-radius:10px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+section h2{font-size:15px;margin:0;padding:10px 16px;border-bottom:1px solid #e5e9f0}
+textarea{width:100%;flex:1;border:0;resize:none;padding:18px;font:14px/1.65 ui-monospace,Consolas,monospace;outline:0}
+#preview{padding:20px 25px;overflow:auto;overflow-wrap:anywhere}
+#preview h1,#preview h2,#preview h3{line-height:1.35}
+#preview pre{background:#f2f4f7;padding:15px;overflow:auto;border-radius:6px}
+#preview table{border-collapse:collapse;display:block;max-width:100%;overflow:auto}
+#preview td,#preview th{border:1px solid #ccd5df;padding:6px 10px}
+#preview blockquote{border-left:3px solid #a5b6d0;padding-left:14px;color:#52657d}
+#preview .math-display{overflow-x:auto;margin:20px 0;text-align:center}
+#preview .math-error{color:#c82336;white-space:pre-wrap}
+button{border:1px solid #cdd7e2;background:white;border-radius:6px;padding:6px 12px;cursor:pointer}
+button.primary{background:#142c50;color:white;border-color:#142c50}small{color:#64748b}
+@media(max-width:800px){main{grid-template-columns:1fr;height:auto}section{height:48vh}}
+@page{size:A4;margin:16mm}
+@media print{
+ body{background:white;color:#111;font:11pt/1.55 system-ui,sans-serif}
+ header,.editor-section,.preview-section>h2{display:none!important}
+ main{display:block;padding:0;height:auto}
+ .preview-section{display:block;overflow:visible;border:0;border-radius:0}
+ #preview{display:block;overflow:visible;padding:0;overflow-wrap:break-word}
+ #preview table{display:table;max-width:100%;overflow:visible;font-size:9pt}
+ #preview tr,#preview pre,#preview blockquote,#preview .math-display{break-inside:avoid;page-break-inside:avoid}
+ #preview h1,#preview h2,#preview h3{break-after:avoid;page-break-after:avoid}
+ #preview a{color:inherit;text-decoration:underline}
+ #preview .math-display{overflow:visible}
+}
+</style></head>
+<body><header><strong>LaTeX Markdown Viewer</strong><div class="actions"><small id="status">라이브러리 로딩 중…</small><button id="clear">지우기</button><button id="pdf" class="primary">PDF 저장</button></div></header>
+<main><section class="editor-section"><h2>원본 입력 · 수정하지 않음</h2><textarea id="source" placeholder="Markdown 또는 TXT 내용을 그대로 붙여넣으세요" spellcheck="false"></textarea></section>
+<section class="preview-section"><h2>미리보기</h2><article id="preview"></article></section></main>
+<script src="https://cdn.jsdelivr.net/npm/markdown-it@14.1.0/dist/markdown-it.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.22/dist/katex.min.js"></script>
+<script>
+const source=document.getElementById('source'),preview=document.getElementById('preview'),status=document.getElementById('status');
+const escapeHtml=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function extractMath(text){
+ const math=[],token=(tex,display)=>{let id=math.length;math.push({tex,display});return 'MATHPLACEHOLDER'+id+'END'};
+ let result='',fenced=false,fc='',fl=0,buffer='';
+ function extractSegment(s){
+  let r='',pos=0;
+  const patterns=[
+   {re:/\\{1,2}\[([\s\S]*?)\\{1,2}\]/g,display:true},
+   {re:/\\{1,2}\(([\s\S]*?)\\{1,2}\)/g,display:false},
+   {re:/\$\$([\s\S]*?)\$\$/g,display:true},
+   {re:/\$([^$\n]+?)\$/g,display:false}
+  ];
+  while(pos<s.length){
+   let match=null;
+   for(const p of patterns){p.re.lastIndex=pos;const m=p.re.exec(s);if(m&&(!match||m.index<match.index))match={index:m.index,end:p.re.lastIndex,tex:m[1],display:p.display}}
+   if(!match){r+=s.slice(pos);break}
+   r+=s.slice(pos,match.index)+token(match.tex,match.display);pos=match.end;
+  }return r;
+ }
+ function flush(){if(buffer){result+=extractSegment(buffer);buffer=''}}
+ const lines=text.split('\n');
+ for(let k=0;k<lines.length;k++){
+  const ln=lines[k],suffix=k<lines.length-1?'\n':'',m=ln.match(/^\s{0,3}(`{3,}|~{3,})/);
+  if(m){flush();if(!fenced){fenced=true;fc=m[1][0];fl=m[1].length}else if(m[1][0]===fc&&m[1].length>=fl)fenced=false;result+=ln+suffix}
+  else if(fenced)result+=ln+suffix;else buffer+=ln+suffix;
+ }
+ flush();return {text:result,math};
+}
+function render(){
+ if(!window.markdownit||!window.katex){status.textContent='라이브러리 로딩 실패 · 인터넷 연결 확인';return}
+ const md=window.markdownit({html:false,linkify:true,typographer:false});
+ const extracted=extractMath(source.value);
+ let html=md.render(extracted.text);
+ html=html.replace(/MATHPLACEHOLDER(\d+)END/g,(_,id)=>{
+  const m=extracted.math[+id];
+  try{const rendered=katex.renderToString(m.tex.trim(),{displayMode:m.display,throwOnError:true,trust:false,strict:'ignore'});return m.display?'<div class="math-display">'+rendered+'</div>':rendered}
+  catch(e){return '<span class="math-error">수식 오류: '+escapeHtml(e.message)+' ['+escapeHtml(m.tex)+']</span>'}
+ });
+ preview.innerHTML=html;status.textContent='수식 '+extracted.math.length+'개 인식';
+}
+source.addEventListener('input',render);
+document.getElementById('clear').onclick=()=>{source.value='';render();source.focus()};
+document.getElementById('pdf').onclick=()=>{render();window.print()};
+source.value=String.raw`예를 들어 equilibrium 방식에서는
+
+\\[ p(x)=\frac{1}{Z}e^{-E(x)/(k_BT)} \\]
+
+가 되도록 물리계를 만든 뒤,
+
+\\[ \langle f(x)\rangle=\int f(x)p(x)\,dx \\]
+
+를 time/ensemble average로 추정한다.
+
+Non-equilibrium 방식에서는 특정 \\(t=t_{\mathrm{obs}}\\)에서
+
+\\[ y\approx\mathbb{E}[f(x(t_{\mathrm{obs}}))] \\]
+
+가 target function이 되도록 학습한다.`;
+render();window.addEventListener('load',render);
+</script></body></html>
